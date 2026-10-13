@@ -2,7 +2,7 @@
 
 **Understand what PostgreSQL is doing with your query.**
 
-PlanScope turns PostgreSQL `EXPLAIN` JSON into an execution tree, review signals, and a before/after comparison. It helps answer a practical question: *did that database change actually improve this query?*
+PlanScope turns PostgreSQL `EXPLAIN` JSON into a compact execution tree, review signals, and a before/after comparison. It helps answer a practical question: *did that database change actually improve this query?*
 
 Built with React, TypeScript, and Vite. Analysis happens in the browser, with no database credentials, AI service, or backend required.
 

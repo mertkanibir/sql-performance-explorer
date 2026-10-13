@@ -1,25 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
-  Activity,
-  ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  Check,
-  ChevronRight,
-  CircleHelp,
-  Code2,
   Download,
   FileJson,
-  FolderOpen,
   GitCompareArrows,
-  GitBranch,
   Info,
-  LockKeyhole,
   Plus,
-  ScanLine,
-  Settings2,
-  ShieldCheck,
-  Timer,
   Trash2,
   TriangleAlert,
   Bookmark,
@@ -39,6 +26,7 @@ import type { Delta, ParsedPlan } from './lib/plan';
 import { readSaved, writeSaved } from './lib/storage';
 import type { SavedAnalysis } from './lib/storage';
 import { baselineSample, optimizedSample, estimatedSample, capturedSource } from './data/samples';
+import setupSql from '../demo/setup.sql?raw';
 interface Analysis {
   name: string;
   input: string;
@@ -68,7 +56,7 @@ function download(name: string, content: string, type: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
-function DeltaCard({
+function DeltaRow({
   title,
   value,
   suffix,
@@ -77,52 +65,33 @@ function DeltaCard({
   value: Delta | null;
   suffix: string;
 }) {
-  const lower = value && value.change < 0;
   return (
-    <div className="delta-card">
-      <p className="eyebrow">{title}</p>
-      <div className="delta-values">
-        <span>{value ? formatNumber(value.before) : '—'}</span>
-        <ArrowRight size={20} />
-        <strong>
-          {value ? formatNumber(value.after) : '—'}
-          <small>{suffix}</small>
-        </strong>
-      </div>
-      <p className={value ? (lower ? 'delta-good' : value.change > 0 ? 'delta-bad' : '') : 'muted'}>
-        {value ? (
-          <>
-            {lower ? (
-              <ArrowDownRight size={16} />
-            ) : value.change > 0 ? (
-              <ArrowUpRight size={16} />
-            ) : (
-              <Check size={16} />
-            )}
-            {value.percent === null
-              ? `${formatNumber(value.change)}${suffix} change · zero baseline`
-              : `${formatNumber(Math.abs(value.percent))}% ${lower ? 'lower' : value.change > 0 ? 'higher' : 'change'}`}
-          </>
-        ) : (
-          'Both plans need this measurement'
-        )}
-      </p>
-    </div>
+    <tr>
+      <th scope="row">{title}</th>
+      <td>{value ? formatNumber(value.before) + suffix : 'Not recorded'}</td>
+      <td>{value ? formatNumber(value.after) + suffix : 'Not recorded'}</td>
+      <td>
+        {value
+          ? value.percent === null
+            ? `${formatNumber(value.change)}${suffix} · zero baseline`
+            : `${formatNumber(Math.abs(value.percent))}% ${value.change < 0 ? 'lower' : value.change > 0 ? 'higher' : 'change'}`
+          : 'Unavailable'}
+      </td>
+    </tr>
   );
 }
 function CompactPlan({ plan, name }: { plan: ParsedPlan; name: string }) {
   return (
     <section className="compact-plan">
-      <div className="compact-plan-title">
-        <span className="legend-dot" />
+      <div className="panel-heading">
         <h3>{name}</h3>
-        <small>{plan.nodes.length} nodes</small>
+        <span>{plan.nodes.length} operations</span>
       </div>
       <ol>
         {plan.nodes.map((node) => (
-          <li key={node.id} style={{ paddingLeft: `${18 + Math.min(node.depth, 10) * 20}px` }}>
-            <span className="compact-node-mark" />
-            <span>
+          <li key={node.id} style={{ paddingLeft: `${12 + Math.min(node.depth, 10) * 18}px` }}>
+            <span className="compact-node-id">{node.id}</span>
+            <span className="compact-operation">
               <strong>{node.type}</strong>
               <small>{node.relation ?? node.index ?? '—'}</small>
             </span>
@@ -149,6 +118,7 @@ export default function App() {
   const plan = useMemo(() => parsePlan(analysis.input), [analysis.input]);
   const comparedPlan = useMemo(() => parsePlan(comparison.input), [comparison.input]);
   const insights = useMemo(() => analyzePlan(plan), [plan]);
+  const warningCount = insights.filter((insight) => insight.kind === 'warning').length;
   const selected = plan.nodes.find((node) => node.id === selectedId) ?? plan.root;
   const differences = useMemo(() => comparePlans(plan, comparedPlan), [plan, comparedPlan]);
   const openAnalysis = (next: Analysis, sample = '') => {
@@ -208,175 +178,146 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         Skip to analysis
       </a>
-      <aside className="sidebar">
+      <header className="app-header">
         <a
-          className="brand"
+          className="app-name"
           href="#"
-          onClick={(e) => {
-            e.preventDefault();
+          onClick={(event) => {
+            event.preventDefault();
             setView('analyze');
           }}
-          aria-label="PlanScope home"
         >
-          <span className="brand-symbol">
-            <ScanLine size={23} />
-          </span>
-          <span>
-            PlanScope<span className="brand-period">.</span>
-          </span>
+          PlanScope
         </a>
-        <div className="workspace">
-          <span className="workspace-icon">
-            <DatabaseIcon />
-          </span>
-          <div>
-            <strong>Local workspace</strong>
-            <small>PostgreSQL explorer</small>
-          </div>
-          <span className="status-dot" />
-        </div>
-        <p className="nav-label">WORKSPACE</p>
+        <span className="app-description">PostgreSQL EXPLAIN inspector</span>
         <nav aria-label="Main navigation">
-          <button
-            className={view === 'analyze' ? 'nav-item active' : 'nav-item'}
-            onClick={() => setView('analyze')}
-          >
-            <GitBranch size={18} /> Plan explorer <ChevronRight size={15} />
-          </button>
-          <button
-            className={view === 'compare' ? 'nav-item active' : 'nav-item'}
-            onClick={() => setView('compare')}
-          >
-            <GitCompareArrows size={18} /> Compare plans <span className="nav-pill">2</span>
-          </button>
-          <button
-            className={view === 'guide' ? 'nav-item active' : 'nav-item'}
-            onClick={() => setView('guide')}
-          >
-            <Code2 size={18} /> Capture guide
-          </button>
+          {(
+            [
+              { id: 'analyze', label: 'Execution plan' },
+              { id: 'compare', label: 'Compare plans' },
+              { id: 'guide', label: 'Capture instructions' },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              className={view === item.id ? 'nav-item active' : 'nav-item'}
+              aria-current={view === item.id ? 'page' : undefined}
+              onClick={() => setView(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
-        <div className="library-heading">
-          <p className="nav-label">SAVED ANALYSES</p>
-          <span>{saved.length}/20</span>
-        </div>
-        <div className="saved-list">
-          {saved.length ? (
-            saved.map((item) => (
-              <div className="saved-item" key={item.id}>
-                <button className="saved-load" onClick={() => openAnalysis(item)}>
-                  <FileJson size={16} />
-                  <span>
-                    {item.name}
-                    <small>
-                      {new Date(item.savedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </small>
-                  </span>
-                </button>
-                <button
-                  className="saved-delete"
-                  aria-label={`Delete saved ${item.name}`}
-                  onClick={() => {
-                    if (persist(saved.filter((row) => row.id !== item.id)))
-                      setNotice('Saved analysis deleted.');
-                  }}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="empty-library">
-              <FolderOpen size={23} />
-              <p>Keep a useful plan close.</p>
-              <small>Save an analysis to revisit it here.</small>
+      </header>
+      <div className="workspace-layout">
+        <aside className="library-panel" aria-label="Plan library">
+          <section className="sample-library">
+            <h2>Example plans</h2>
+            <div className="sample-list">
+              <button
+                className={activeSample === 'baseline' ? 'sample-button selected' : 'sample-button'}
+                onClick={() => openAnalysis(baseline, 'baseline')}
+              >
+                <FileJson size={14} /> Before index
+              </button>
+              <button
+                className={activeSample === 'indexed' ? 'sample-button selected' : 'sample-button'}
+                onClick={() => openAnalysis(optimized, 'indexed')}
+              >
+                <FileJson size={14} /> After index
+              </button>
+              <button
+                className={
+                  activeSample === 'estimates' ? 'sample-button selected' : 'sample-button'
+                }
+                onClick={() => openAnalysis(estimates, 'estimates')}
+              >
+                <FileJson size={14} /> Estimates only
+              </button>
             </div>
-          )}
-        </div>
-        <div className="sidebar-bottom">
-          <div className="privacy-badge">
-            <LockKeyhole size={16} />
-            <div>
-              <strong>Private by design</strong>
-              <small>Plans stay in your browser.</small>
+          </section>
+          <section className="saved-library">
+            <h2>
+              Saved analyses <span>{saved.length}/20</span>
+            </h2>
+            <div className="saved-list">
+              {saved.length ? (
+                saved.map((item) => (
+                  <div className="saved-item" key={item.id}>
+                    <button className="saved-load" onClick={() => openAnalysis(item)}>
+                      <FileJson size={14} />
+                      <span>
+                        {item.name}
+                        <small>
+                          {new Date(item.savedAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </small>
+                      </span>
+                    </button>
+                    <button
+                      className="icon-button saved-delete"
+                      aria-label={`Delete saved ${item.name}`}
+                      onClick={() => {
+                        if (persist(saved.filter((row) => row.id !== item.id)))
+                          setNotice('Saved analysis deleted.');
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="empty-library">No saved analyses.</p>
+              )}
             </div>
-          </div>
+          </section>
+          <p className="library-note">Saved plans are stored in this browser.</p>
           <a
+            className="documentation-link"
             href="https://www.postgresql.org/docs/current/using-explain.html"
             target="_blank"
             rel="noreferrer"
           >
-            <CircleHelp size={16} /> PostgreSQL EXPLAIN docs <ArrowUpRight size={14} />
+            PostgreSQL documentation <ArrowUpRight size={13} />
           </a>
-          <div className="build-label">
-            BUILT FOR CURIOUS ENGINEERS <span>v1.0</span>
-          </div>
-        </div>
-      </aside>
-      <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            Workspace <ChevronRight size={13} />
-            <strong>
+        </aside>
+        <main id="main-content">
+          <div className="page-heading">
+            <h1>
               {view === 'compare'
                 ? 'Compare plans'
                 : view === 'guide'
-                  ? 'Capture guide'
-                  : 'Plan explorer'}
-            </strong>
-          </div>
-          <span className="local-badge">
-            <span className="status-dot" /> LOCAL ANALYSIS
-          </span>
-        </header>
-        <main id="main-content">
-          <div className="page-heading">
-            <div>
-              <p className="eyebrow">
-                <span /> DATABASE PERFORMANCE, MADE VISIBLE
-              </p>
-              <h1>
-                {view === 'compare'
-                  ? 'See what changed.'
-                  : view === 'guide'
-                    ? 'Start with a real plan.'
-                    : 'Every query has a story.'}
-              </h1>
-              <p>
-                {view === 'compare'
-                  ? 'Put an optimization to the test, one execution plan at a time.'
-                  : view === 'guide'
-                    ? 'Capture PostgreSQL output, then bring it here to explore.'
-                    : 'Follow the plan. Find the friction. Make the next run better.'}
-              </p>
-            </div>
+                  ? 'Capture instructions'
+                  : 'Execution plan'}
+            </h1>
             <button
               className="primary-button"
               onClick={() => setImportMode(view === 'compare' ? 'comparison' : 'baseline')}
             >
-              <Plus size={18} /> Import {view === 'compare' ? 'comparison' : 'plan'}
+              <Plus size={15} /> Import {view === 'compare' ? 'comparison' : 'plan'}
             </button>
           </div>
           {notice ? (
             <div className="notice" role="status">
-              <Check size={16} />
               <span>{notice}</span>
-              <button aria-label="Dismiss notification" onClick={() => setNotice('')}>
+              <button
+                className="icon-button"
+                aria-label="Dismiss notification"
+                onClick={() => setNotice('')}
+              >
                 ×
               </button>
             </div>
           ) : null}
           {view === 'guide' ? (
             <div className="guide-content">
-              <section className="panel guide-panel">
-                <p className="eyebrow">01 / CAPTURE</p>
-                <h2>Export the query’s execution plan</h2>
+              <section className="guide-panel">
+                <h2>Export a PostgreSQL plan</h2>
                 <p>
-                  Run this in your own PostgreSQL client, and save the JSON output. The ANALYZE
-                  option executes your SQL, so begin with a read-only query you understand.
+                  Run this in your PostgreSQL client and save the JSON output. ANALYZE executes the
+                  SQL statement; use a read-only query you understand.
                 </p>
                 <pre>
                   {
@@ -384,20 +325,19 @@ export default function App() {
                   }
                 </pre>
                 <p>
-                  For estimates without execution, use <code>EXPLAIN (FORMAT JSON)</code>. For row
-                  measurements without timing overhead, add <code>TIMING OFF</code> to an ANALYZE
-                  capture.
+                  Use <code>EXPLAIN (FORMAT JSON)</code> for estimates without execution. Add{' '}
+                  <code>TIMING OFF</code> to an ANALYZE capture for row measurements without node
+                  timings.
                 </p>
                 <button className="secondary-button" onClick={() => setImportMode('baseline')}>
-                  I have a plan <ArrowRight size={16} />
+                  I have a plan <ArrowRight size={14} />
                 </button>
               </section>
-              <section className="panel guide-panel">
-                <p className="eyebrow">02 / REPRODUCE</p>
-                <h2>The orders lookup experiment</h2>
+              <section className="guide-panel">
+                <h2>Reproduce the sample captures</h2>
                 <p>
-                  Our example uses a deterministic set of 200,000 orders. A customer/status lookup
-                  filters almost the entire table; adding a composite index changes the scan
+                  The sample uses 200,000 deterministic orders. A selective customer/status lookup
+                  initially scans almost the whole table. A composite index changes the scan
                   strategy.
                 </p>
                 <pre>
@@ -405,133 +345,85 @@ export default function App() {
                     'CREATE INDEX planscope_orders_lookup\nON planscope_orders\n(customer_id, status, created_at DESC);'
                   }
                 </pre>
-                <div className="guide-result">
-                  <Timer size={20} />
-                  <span>
-                    <strong>21.659 ms → 0.313 ms</strong>
-                    <small>Single local captures · PostgreSQL 18.6 / PGlite 0.5.9</small>
-                  </span>
-                </div>
+                <dl className="experiment-results">
+                  <div>
+                    <dt>Baseline execution</dt>
+                    <dd>21.659 ms</dd>
+                  </div>
+                  <div>
+                    <dt>Indexed execution</dt>
+                    <dd>0.313 ms</dd>
+                  </div>
+                  <div>
+                    <dt>Engine</dt>
+                    <dd>PostgreSQL 18.6 / PGlite 0.5.9</dd>
+                  </div>
+                </dl>
                 <p>
-                  These are observed captures, not a production benchmark. Repeat equivalent queries
-                  on the same dataset and cache state to evaluate a change.
+                  Single local captures, not a production benchmark. Compare repeated runs with
+                  equivalent data, configuration, and cache conditions.
                 </p>
                 <button
                   className="secondary-button"
                   onClick={() => download('planscope-setup.sql', setupSql, 'text/plain')}
                 >
-                  Download experiment SQL <Download size={16} />
+                  Download experiment SQL <Download size={14} />
                 </button>
               </section>
             </div>
           ) : (
             <>
-              <section className="source-bar" aria-label="Current analysis">
-                <span className="source-icon">
-                  <FileJson size={20} />
-                </span>
-                <div>
+              <section className="analysis-document" aria-label="Current analysis">
+                <div className="document-heading">
+                  <FileJson size={16} />
                   <h2>{analysis.name}</h2>
-                  <p>{analysis.source}</p>
+                  <div className="document-actions">
+                    <button className="secondary-button" onClick={save}>
+                      <Bookmark size={14} /> Save
+                    </button>
+                    <button className="secondary-button" onClick={exportReport}>
+                      <Download size={14} /> Export report
+                    </button>
+                  </div>
                 </div>
-                <button className="text-button" onClick={save}>
-                  <Bookmark size={15} /> Save
-                </button>
-                <button className="text-button" onClick={exportReport}>
-                  <Download size={15} /> Export report
-                </button>
+                <p className="document-source">{analysis.source}</p>
               </section>
-              <div className="sample-bar">
-                <div>
-                  <span className="sample-label">TRY A PLAN</span>
-                  <button
-                    className={
-                      activeSample === 'baseline' ? 'sample-button selected' : 'sample-button'
-                    }
-                    onClick={() => openAnalysis(baseline, 'baseline')}
-                  >
-                    Before index
-                  </button>
-                  <button
-                    className={
-                      activeSample === 'indexed' ? 'sample-button selected' : 'sample-button'
-                    }
-                    onClick={() => openAnalysis(optimized, 'indexed')}
-                  >
-                    After index
-                  </button>
-                  <button
-                    className={
-                      activeSample === 'estimates' ? 'sample-button selected' : 'sample-button'
-                    }
-                    onClick={() => openAnalysis(estimates, 'estimates')}
-                  >
-                    Estimates only
-                  </button>
-                </div>
-                <span className="capture-note">
-                  <Info size={13} /> Actual local captures; timings vary.
-                </span>
-              </div>
               {view === 'analyze' ? (
                 <>
-                  <section className="metrics" aria-label="Plan summary">
-                    <div className="metric-tile execution">
-                      <span className="metric-label">
-                        <Timer size={16} /> EXECUTION TIME
-                      </span>
-                      <strong>
+                  <dl className="plan-summary" aria-label="Plan summary">
+                    <div className="summary-stat execution">
+                      <dt>Execution</dt>
+                      <dd>
                         {plan.executionTime === undefined
-                          ? '—'
-                          : formatNumber(plan.executionTime, 3)}
-                        <small>ms</small>
-                      </strong>
-                      <p>
-                        {plan.executionTime === undefined
-                          ? 'No execution timing recorded'
-                          : 'Statement duration from EXPLAIN'}
-                      </p>
-                      <Activity className="tile-watermark" size={76} />
+                          ? 'Not recorded'
+                          : `${formatNumber(plan.executionTime, 3)} ms`}
+                      </dd>
+                      {plan.executionTime === undefined ? (
+                        <small>No execution timing recorded</small>
+                      ) : null}
                     </div>
-                    <div className="metric-tile">
-                      <span className="metric-label">
-                        <Settings2 size={16} /> PLANNER COST
-                      </span>
-                      <strong>
-                        {formatNumber(plan.root.totalCost)}
-                        <small>units</small>
-                      </strong>
-                      <p>Root cost · inclusive of descendants</p>
+                    <div className="summary-stat">
+                      <dt>Planning</dt>
+                      <dd>{metric(plan.planningTime, ' ms')}</dd>
                     </div>
-                    <div className="metric-tile">
-                      <span className="metric-label">
-                        <GitBranch size={16} /> PLAN OPERATIONS
-                      </span>
-                      <strong>
+                    <div className="summary-stat">
+                      <dt>Root cost</dt>
+                      <dd>{formatNumber(plan.root.totalCost)} units</dd>
+                    </div>
+                    <div className="summary-stat">
+                      <dt>Operations</dt>
+                      <dd>
                         {plan.nodes.length}
-                        <small>nodes</small>
-                      </strong>
-                      <p>
-                        {plan.parallel
-                          ? 'Parallel workers · overlapping work'
-                          : 'Sequential tree · follow each operation'}
-                      </p>
+                        {plan.parallel ? ' · parallel' : ''}
+                      </dd>
                     </div>
-                    <div className="metric-tile signal-tile">
-                      <span className="metric-label">
-                        <ScanLine size={16} /> REVIEW SIGNALS
-                      </span>
-                      <strong>
-                        {insights.filter((i) => i.kind === 'warning').length}
-                        <small>to inspect</small>
-                      </strong>
-                      <p>
-                        {plan.analyzed
-                          ? 'Deterministic heuristics, not diagnoses'
-                          : 'Estimates only · no actual row data'}
-                      </p>
+                    <div className="summary-stat">
+                      <dt>Review signals</dt>
+                      <dd>
+                        {warningCount} {warningCount === 1 ? 'warning' : 'warnings'}
+                      </dd>
                     </div>
-                  </section>
+                  </dl>
                   <div className="explorer-grid">
                     <div className="explorer-left">
                       <PlanTree
@@ -541,11 +433,9 @@ export default function App() {
                         onSelect={setSelectedId}
                       />
                       <section className="signals-panel" aria-labelledby="signals-title">
-                        <div className="section-heading">
-                          <h2 id="signals-title">
-                            <ScanLine size={18} /> A closer look
-                          </h2>
-                          <span>{insights.length} signals</span>
+                        <div className="panel-heading">
+                          <h2 id="signals-title">Review signals</h2>
+                          <span>{insights.length}</span>
                         </div>
                         {insights.length ? (
                           insights.map((insight, index) => (
@@ -556,31 +446,24 @@ export default function App() {
                             >
                               <span className="insight-symbol">
                                 {insight.kind === 'warning' ? (
-                                  <TriangleAlert size={17} />
+                                  <TriangleAlert size={15} />
                                 ) : (
-                                  <Info size={17} />
+                                  <Info size={15} />
                                 )}
                               </span>
                               <span>
                                 <strong>
-                                  {insight.title} <small>NODE {insight.nodeId}</small>
+                                  {insight.title} <small>Node {insight.nodeId}</small>
                                 </strong>
                                 <p>{insight.message}</p>
                               </span>
-                              <ChevronRight size={16} />
                             </button>
                           ))
                         ) : (
-                          <div className="no-signals">
-                            <ShieldCheck size={22} />
-                            <div>
-                              <strong>No configured signals triggered.</strong>
-                              <p>
-                                Inspect the operations and compare repeated runs; this doesn’t
-                                establish optimal performance.
-                              </p>
-                            </div>
-                          </div>
+                          <p className="no-signals">
+                            No configured signals triggered. Inspect the operations and compare
+                            repeated runs; this does not establish optimal performance.
+                          </p>
                         )}
                       </section>
                     </div>
@@ -591,7 +474,7 @@ export default function App() {
                 <div className="comparison-view">
                   <section className="comparison-heading">
                     <div>
-                      <p className="eyebrow">BASELINE → COMPARISON</p>
+                      <span className="section-label">Comparison document</span>
                       <h2>{comparison.name}</h2>
                       <p>{comparison.source}</p>
                     </div>
@@ -605,21 +488,21 @@ export default function App() {
                         setActiveSample('');
                       }}
                     >
-                      Swap plans <GitCompareArrows size={16} />
+                      Swap plans <GitCompareArrows size={14} />
                     </button>
                   </section>
                   <div className="comparison-selector">
-                    <label htmlFor="comparison-saved">Compare against saved analysis</label>
+                    <label htmlFor="comparison-saved">Saved analysis</label>
                     <select
                       id="comparison-saved"
                       value=""
-                      onChange={(e) => {
-                        const item = saved.find((row) => row.id === e.target.value);
+                      onChange={(event) => {
+                        const item = saved.find((row) => row.id === event.target.value);
                         if (item) setComparison(item);
                       }}
                     >
                       <option value="" disabled>
-                        Select from your library…
+                        Select from library…
                       </option>
                       {saved.map((item) => (
                         <option key={item.id} value={item.id}>
@@ -627,45 +510,52 @@ export default function App() {
                         </option>
                       ))}
                     </select>
-                    <button className="text-button" onClick={() => setComparison(optimized)}>
-                      Use indexed sample <ArrowRight size={14} />
+                    <button className="secondary-button" onClick={() => setComparison(optimized)}>
+                      Use indexed sample
                     </button>
                   </div>
-                  <div className="delta-grid">
-                    <DeltaCard title="EXECUTION TIME" value={differences.execution} suffix=" ms" />
-                    <DeltaCard
-                      title="ROOT ESTIMATED COST"
-                      value={differences.cost}
-                      suffix=" units"
-                    />
-                    <DeltaCard title="PLAN NODE COUNT" value={differences.nodes} suffix=" nodes" />
+                  <div className="comparison-table-wrapper">
+                    <table className="comparison-table">
+                      <thead>
+                        <tr>
+                          <th>Measurement</th>
+                          <th>Baseline</th>
+                          <th>Comparison</th>
+                          <th>Change</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <DeltaRow
+                          title="Execution time"
+                          value={differences.execution}
+                          suffix=" ms"
+                        />
+                        <DeltaRow
+                          title="Root estimated cost"
+                          value={differences.cost}
+                          suffix=" units"
+                        />
+                        <DeltaRow title="Operation count" value={differences.nodes} suffix="" />
+                      </tbody>
+                    </table>
                   </div>
                   {differences.outputRows && differences.outputRows.change !== 0 ? (
-                    <div className="comparison-warning">
-                      <TriangleAlert size={17} /> The root output row counts differ. Verify both
-                      queries return equivalent results before attributing the change to an
-                      optimization.
-                    </div>
+                    <p className="comparison-warning">
+                      <TriangleAlert size={15} /> Root output counts differ. Verify equivalent
+                      results before attributing the change to an optimization.
+                    </p>
                   ) : null}
                   <div className="side-by-side">
-                    <CompactPlan plan={plan} name="Baseline" />
-                    <CompactPlan plan={comparedPlan} name="Comparison" />
+                    <CompactPlan plan={plan} name="Baseline operations" />
+                    <CompactPlan plan={comparedPlan} name="Comparison operations" />
                   </div>
                   <p className="comparison-caveat">
-                    <Info size={16} /> This compares statement summaries and tree shapes, without
-                    assuming corresponding nodes are equivalent. Costs are planner units; timings
-                    depend on hardware, cache, data, and configuration.
+                    Comparison uses statement summaries and tree shapes. Costs are planner units;
+                    timings depend on hardware, cache, data, and configuration. Corresponding nodes
+                    are not assumed equivalent.
                   </p>
                 </div>
               )}
-              <footer className="content-footer">
-                <span>
-                  <LockKeyhole size={13} /> Local analysis. No database connection required.
-                </span>
-                <span>
-                  PostgreSQL JSON <span className="footer-dot">·</span> Deterministic insights
-                </span>
-              </footer>
             </>
           )}
         </main>
@@ -687,7 +577,3 @@ export default function App() {
     </div>
   );
 }
-function DatabaseIcon() {
-  return <Activity size={18} />;
-}
-import setupSql from '../demo/setup.sql?raw';

@@ -48,7 +48,6 @@ export function ImportDialog({ mode, onClose, onImport }: Props) {
       >
         <div className="dialog-head">
           <div>
-            <p className="eyebrow">YOUR DATABASE. YOUR BROWSER.</p>
             <h2 id="import-title">
               {mode === 'comparison' ? 'Import comparison plan' : 'Import query plan'}
             </h2>
@@ -63,7 +62,7 @@ export function ImportDialog({ mode, onClose, onImport }: Props) {
           </button>
         </div>
         <p className="muted">
-          Paste JSON output from PostgreSQL or upload a plan file. Nothing is sent to a server.
+          Paste JSON output from PostgreSQL or upload a plan file. Processing stays in this browser.
         </p>
         <label className="field-label" htmlFor="analysis-name">
           Analysis name

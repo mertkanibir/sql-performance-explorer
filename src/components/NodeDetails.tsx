@@ -1,4 +1,3 @@
-import { ArrowUpRight, Database, GitBranch, Info } from 'lucide-react';
 import { estimateError, formatNumber, metric } from '../lib/plan';
 import type { PlanNode } from '../lib/plan';
 export function NodeDetails({ node }: { node: PlanNode }) {
@@ -29,54 +28,45 @@ export function NodeDetails({ node }: { node: PlanNode }) {
             : 'Zero actual rows'
           : `${formatNumber(error?.factor ?? 1)}× estimation difference`;
   return (
-    <aside className="panel node-details" aria-labelledby="node-details-heading">
+    <aside className="node-details" aria-labelledby="node-details-heading">
       <div className="panel-heading">
-        <div>
-          <p className="eyebrow">SELECTED OPERATION</p>
-          <h2 id="node-details-heading">Node details</h2>
-        </div>
+        <h2 id="node-details-heading">Node properties</h2>
         <span className="node-id">{node.id}</span>
       </div>
       <div className="selected-operation">
-        <span className="detail-icon">
-          {node.type.includes('Scan') ? <Database size={24} /> : <GitBranch size={24} />}
-        </span>
-        <div>
-          <h3>{node.type}</h3>
-          <p>{node.relation ?? node.index ?? 'Query operation'}</p>
-        </div>
+        <h3>{node.type}</h3>
+        <p>{node.relation ?? node.index ?? 'Query operation'}</p>
       </div>
-      <div className="detail-grid">
+      <dl className="property-table">
         <div>
-          <span>Time / loop</span>
-          <strong>{metric(node.actualTime, ' ms')}</strong>
-        </div>
-        <div>
-          <span>Actual loops</span>
-          <strong>{metric(node.loops)}</strong>
+          <dt>Time / loop</dt>
+          <dd>{metric(node.actualTime, ' ms')}</dd>
         </div>
         <div>
-          <span>Inclusive work</span>
-          <strong>{metric(node.cumulativeTime, ' ms')}</strong>
+          <dt>Actual loops</dt>
+          <dd>{metric(node.loops)}</dd>
         </div>
         <div>
-          <span>Total output rows</span>
-          <strong>{metric(node.totalRows)}</strong>
+          <dt>Inclusive work</dt>
+          <dd>{metric(node.cumulativeTime, ' ms')}</dd>
         </div>
-      </div>
-      <div className="estimate-block">
-        <p className="eyebrow">CARDINALITY · ROWS PER LOOP</p>
-        <div className="estimate-pair">
-          <span>
-            <small>Estimated</small>
-            <strong>{formatNumber(node.estimatedRows)}</strong>
-          </span>
-          <ArrowUpRight size={20} />
-          <span>
-            <small>Actual</small>
-            <strong>{metric(node.actualRows)}</strong>
-          </span>
+        <div>
+          <dt>Total output rows</dt>
+          <dd>{metric(node.totalRows)}</dd>
         </div>
+      </dl>
+      <section className="property-section">
+        <h4>Cardinality · rows per loop</h4>
+        <dl className="property-table">
+          <div>
+            <dt>Estimated</dt>
+            <dd>{formatNumber(node.estimatedRows)}</dd>
+          </div>
+          <div>
+            <dt>Actual</dt>
+            <dd>{metric(node.actualRows)}</dd>
+          </div>
+        </dl>
         <p
           className={
             error?.factor === null || (error?.factor ?? 1) >= 10
@@ -86,16 +76,23 @@ export function NodeDetails({ node }: { node: PlanNode }) {
         >
           {measurement}
         </p>
-      </div>
-      <div className="cost-line">
-        <span>Planner cost</span>
-        <strong>
-          {formatNumber(node.startupCost)} → {formatNumber(node.totalCost)}
-        </strong>
-      </div>
+      </section>
+      <section className="property-section">
+        <h4>Planner cost</h4>
+        <dl className="property-table">
+          <div>
+            <dt>Startup</dt>
+            <dd>{formatNumber(node.startupCost)}</dd>
+          </div>
+          <div>
+            <dt>Total</dt>
+            <dd>{formatNumber(node.totalCost)}</dd>
+          </div>
+        </dl>
+      </section>
       {conditions.length > 0 ? (
-        <div className="conditions">
-          <p className="eyebrow">PREDICATES & ORDERING</p>
+        <section className="property-section conditions">
+          <h4>Predicates and ordering</h4>
           {conditions.map((key) => (
             <div key={key}>
               <small>{key}</small>
@@ -106,25 +103,27 @@ export function NodeDetails({ node }: { node: PlanNode }) {
               </pre>
             </div>
           ))}
-        </div>
+        </section>
       ) : null}
       {buffers.length > 0 ? (
-        <div className="buffers">
-          <p className="eyebrow">BUFFERS · INCLUSIVE COUNTERS</p>
-          {buffers.map((key) => (
-            <div key={key}>
-              <span>{key.replace(' Blocks', '')}</span>
-              <strong>{String(node.raw[key])}</strong>
-            </div>
-          ))}
-        </div>
+        <section className="property-section buffers">
+          <h4>Buffers · inclusive counters</h4>
+          <dl className="property-table">
+            {buffers.map((key) => (
+              <div key={key}>
+                <dt>{key.replace(' Blocks', '')}</dt>
+                <dd>{String(node.raw[key])}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       ) : null}
       <p className="detail-note">
-        <Info size={14} /> Costs use planner units. Actual timings include child operations; rows
-        across loops are approximate.
+        Costs use planner units. Timings include child operations; row totals across loops are
+        approximate.
       </p>
       <details className="raw-details">
-        <summary>View raw node JSON</summary>
+        <summary>Raw node JSON</summary>
         <pre>
           {JSON.stringify(
             Object.fromEntries(Object.entries(node.raw).filter(([key]) => key !== 'Plans')),

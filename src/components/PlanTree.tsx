@@ -36,10 +36,7 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
   return (
     <section className="panel tree-panel" aria-labelledby="tree-heading">
       <div className="panel-heading">
-        <div>
-          <p className="eyebrow">FOLLOW THE EXECUTION</p>
-          <h2 id="tree-heading">Query plan</h2>
-        </div>
+        <h2 id="tree-heading">Operations</h2>
         <button className="text-button" onClick={() => setCollapsed(new Set())}>
           Expand all <ChevronDown size={14} />
         </button>
@@ -48,7 +45,7 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
         className="tree-table"
         tabIndex={0}
         role="region"
-        aria-label="Query plan table. Scroll horizontally on small screens."
+        aria-label="Query plan table"
       >
         <div className="tree-column-head">
           <span>OPERATION</span>
@@ -137,7 +134,6 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
         </ul>
       </div>
       <div className="tree-footnote">
-        <span className="legend-dot" />{' '}
         {hasRecordedTime
           ? 'Bars compare inclusive node work. Timings overlap and must never be summed.'
           : 'Bars compare inclusive estimated node costs in planner units. Costs include descendants and must never be summed.'}

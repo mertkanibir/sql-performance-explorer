@@ -2,10 +2,12 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const baselineSample = readFileSync(new URL('../demo/before.json', import.meta.url), 'utf8');
 test('explores captured plan, saves it, and reloads browser-local library', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1040 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Every query has a story.' })).toBeVisible();
-  await expect(page.locator('.metric-tile.execution')).toContainText('21.659');
+  await expect(page.getByRole('heading', { name: 'Execution plan', exact: true })).toBeVisible();
+  await expect(page.locator('.summary-stat.execution')).toContainText('21.659');
   await expect(page.getByRole('heading', { name: 'Seq Scan', exact: true })).toBeVisible();
+  await page.screenshot({ path: 'docs/screenshot.png', fullPage: true });
   await page.getByRole('button', { name: 'Inspect Sort node 1.1', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sort', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Collapse Limit node 1', exact: true }).click();
@@ -43,14 +45,16 @@ test('shows malformed input errors, imports estimated-only plans, and exports re
   expect(report).toContain('Never sum them');
   await page.getByRole('button', { name: 'Estimates only', exact: true }).click();
   await expect(page.getByText('No execution timing recorded')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Estimates only.*NODE 1/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Estimates only.*Node 1/ })).toBeVisible();
 });
 test('compares real plans, imports a comparison, and swaps plans', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1040 });
   await page.goto('/');
   await page.getByRole('button', { name: /Compare plans/ }).click();
-  await expect(page.getByRole('heading', { name: 'See what changed.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Compare plans', exact: true })).toBeVisible();
   await expect(page.getByText('98.55% lower', { exact: true })).toBeVisible();
   await expect(page.getByText('Bitmap Index Scan', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'docs/comparison.png', fullPage: true });
   await page.getByRole('button', { name: 'Swap plans' }).click();
   await expect(
     page.getByRole('heading', { name: 'Orders lookup · indexed', exact: true }),
@@ -66,7 +70,7 @@ test('compares real plans, imports a comparison, and swaps plans', async ({ page
 });
 test('uploads JSON, downloads SQL, and supports keyboard dialog dismissal', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Capture guide/ }).click();
+  await page.getByRole('button', { name: /Capture instructions/ }).click();
   const sqlDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download experiment SQL' }).click();
   expect((await sqlDownload).suggestedFilename()).toBe('planscope-setup.sql');
@@ -86,9 +90,10 @@ test('uploads JSON, downloads SQL, and supports keyboard dialog dismissal', asyn
 test('mobile layout is usable without page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Every query has a story.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Execution plan', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Import plan', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'docs/mobile.png', fullPage: true });
   await page.getByRole('button', { name: /Compare plans/ }).click();
   await expect(page.getByText('98.55% lower', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
