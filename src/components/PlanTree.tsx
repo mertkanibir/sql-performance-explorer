@@ -36,17 +36,15 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
   return (
     <section className="panel tree-panel" aria-labelledby="tree-heading">
       <div className="panel-heading">
-        <h2 id="tree-heading">Operations</h2>
+        <div className="panel-title">
+          <GitBranch size={18} />
+          <h2 id="tree-heading">Execution tree</h2>
+        </div>
         <button className="text-button" onClick={() => setCollapsed(new Set())}>
           Expand all <ChevronDown size={14} />
         </button>
       </div>
-      <div
-        className="tree-table"
-        tabIndex={0}
-        role="region"
-        aria-label="Query plan table"
-      >
+      <div className="tree-table" tabIndex={0} role="region" aria-label="Query plan table">
         <div className="tree-column-head">
           <span>OPERATION</span>
           <span>

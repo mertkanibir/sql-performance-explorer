@@ -2,9 +2,9 @@
 
 **Understand what PostgreSQL is doing with your query.**
 
-PlanScope turns PostgreSQL `EXPLAIN` JSON into a compact execution tree, review signals, and a before/after comparison. It helps answer a practical question: *did that database change actually improve this query?*
+PlanScope turns PostgreSQL `EXPLAIN` JSON into a compact execution tree, review signals, and a before/after comparison. It helps answer a practical question: _did that database change actually improve this query?_
 
-Built with React, TypeScript, and Vite. Analysis happens in the browser, with no database credentials, AI service, or backend required.
+Built with React, TypeScript, and Vite, with locally bundled Inter typography. Analysis happens in the browser, with no database credentials, AI service, or backend required.
 
 ![PlanScope exploring a captured PostgreSQL query plan](docs/screenshot.png)
 
@@ -18,6 +18,7 @@ Built with React, TypeScript, and Vite. Analysis happens in the browser, with no
 - Save up to 20 analyses in browser-local storage, reload them, or delete them.
 - Export a Markdown report with provenance, node measurements, signals, comparisons, and interpretation limits.
 - Work with ordinary `EXPLAIN`, `EXPLAIN ANALYZE`, and `ANALYZE` with `TIMING OFF`.
+- Brief entrances on navigation, node selection, and dialogs; reduced-motion preferences disable movement. Selecting a node keeps the main surface steady and preserves keyboard focus.
 
 ## Run locally
 
@@ -94,13 +95,13 @@ flowchart LR
 
 The application has one input boundary: `parsePlan` validates JSON before it becomes app state. It accepts the standard single-element PostgreSQL array, the statement wrapper, or a bare node. Input is limited to 2 MB, 1,000 nodes, and 64 nesting levels. Required fields, numeric ranges, loop integers, and cumulative overflow are validated; unknown properties are preserved for inspection.
 
-| Area | Files | Responsibility |
-| --- | --- | --- |
-| Plan model | `src/lib/plan.ts` | Parsing, metrics, heuristics, comparison, report generation |
-| Persistence | `src/lib/storage.ts` | Versioned local library, schema checks, quota handling |
-| UI | `src/App.tsx`, `src/components/` | Import, exploration, comparison, capture guide |
-| Captures | `demo/` | Original PostgreSQL output, SQL, provenance, reproducible experiment |
-| Verification | `src/lib/*.test.ts`, `tests/app.spec.ts` | Numeric/structural behavior and full browser flows |
+| Area         | Files                                    | Responsibility                                                       |
+| ------------ | ---------------------------------------- | -------------------------------------------------------------------- |
+| Plan model   | `src/lib/plan.ts`                        | Parsing, metrics, heuristics, comparison, report generation          |
+| Persistence  | `src/lib/storage.ts`                     | Versioned local library, schema checks, quota handling               |
+| UI           | `src/App.tsx`, `src/components/`         | Import, exploration, comparison, capture guide                       |
+| Captures     | `demo/`                                  | Original PostgreSQL output, SQL, provenance, reproducible experiment |
+| Verification | `src/lib/*.test.ts`, `tests/app.spec.ts` | Numeric/structural behavior and full browser flows                   |
 
 ### Decisions and tradeoffs
 
@@ -112,7 +113,7 @@ The application has one input boundary: `parsePlan` validates JSON before it bec
 
 **Inclusive measurements.** PostgreSQL timings and costs include descendant work. Node actual times and rows are per-loop averages. PlanScope multiplies them by actual loops to show inclusive work and approximate aggregate output, while cardinality error compares per-loop rows. It deliberately avoids computed self time and a misleading “percentage of execution time.” Parallel workers can overlap, so node work is not wall-clock duration. Buffer counters are already accumulated and are never multiplied by loops or summed across the tree.
 
-**Small dependency surface.** The UI uses React and Lucide icons, native dialogs/downloads, and ordinary CSS. PGlite is used only for the reproducible developer experiment. No database engine is included in the production client bundle.
+**Small dependency surface.** The UI uses React and Lucide icons, native dialogs/downloads, and ordinary CSS. Inter is bundled locally through Fontsource; its [OFL license](docs/INTER-LICENSE.txt) is included. PGlite is used only for the reproducible developer experiment. No database engine is included in the production client bundle.
 
 ## Verification
 
@@ -127,12 +128,12 @@ npm run experiment
 Verified locally on Node.js 24.21.0:
 
 - **36 unit tests**: captured-plan parsing; wrapper/bare-node input; loops and zero loops; ordinary EXPLAIN and TIMING OFF; zero-row cardinality differences; malformed, oversized, deep, and numerically overflowing input; heuristics; comparison; report content; storage recovery and quota errors.
-- **8 Chromium browser stories**: tree selection/collapse/expand; saving and reload; invalid input and import; report download/content; estimates-only mode; real-plan comparison/import/swap; file upload; SQL download; Escape dismissal; mobile layout without page overflow; zero-time ANALYZE work bars; planner-cost labels for ordinary EXPLAIN and TIMING OFF.
+- **10 Chromium browser stories**: tree selection/collapse/expand; saving and reload; invalid input and import; report download/content; estimates-only mode; real-plan comparison/import/swap; file upload; SQL download; Escape dismissal; mobile layout without page overflow; zero-time ANALYZE work bars; planner-cost labels for ordinary EXPLAIN and TIMING OFF; reduced-motion usability; focus preservation and steady main content during animated inspection.
 - **Production build**: strict TypeScript check and Vite build.
 - **Reproducible database experiment**: original and indexed SQL return identical rows.
 - **Browser observation**: no uncaught page errors, no external network requests during the verified flows, and a 390 px mobile page with no document overflow.
 
-The GitHub Actions workflow runs clean installs, the unit suite, build, actual database experiment, and Chromium stories on Node 24. Failed browser traces are uploaded as artifacts. Screenshots in `docs/` were captured from the working local app.
+The GitHub Actions workflow runs clean installs, the unit suite, build, actual database experiment, and Chromium stories on Node 24. Failed browser traces are uploaded as artifacts. Screenshots in `docs/` were captured from the working local app after fonts loaded and entrance animations settled. A [short interaction recording](docs/motion-demo.webm) shows node selection, comparison, capture instructions, and the import dialog.
 
 ## Limits
 

@@ -7,7 +7,8 @@ test('explores captured plan, saves it, and reloads browser-local library', asyn
   await expect(page.getByRole('heading', { name: 'Execution plan', exact: true })).toBeVisible();
   await expect(page.locator('.summary-stat.execution')).toContainText('21.659');
   await expect(page.getByRole('heading', { name: 'Seq Scan', exact: true })).toBeVisible();
-  await page.screenshot({ path: 'docs/screenshot.png', fullPage: true });
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: 'docs/screenshot.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Inspect Sort node 1.1', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sort', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Collapse Limit node 1', exact: true }).click();
@@ -54,7 +55,8 @@ test('compares real plans, imports a comparison, and swaps plans', async ({ page
   await expect(page.getByRole('heading', { name: 'Compare plans', exact: true })).toBeVisible();
   await expect(page.getByText('98.55% lower', { exact: true })).toBeVisible();
   await expect(page.getByText('Bitmap Index Scan', { exact: true })).toBeVisible();
-  await page.screenshot({ path: 'docs/comparison.png', fullPage: true });
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: 'docs/comparison.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Swap plans' }).click();
   await expect(
     page.getByRole('heading', { name: 'Orders lookup · indexed', exact: true }),
@@ -93,7 +95,8 @@ test('mobile layout is usable without page overflow', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Execution plan', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Import plan', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'docs/mobile.png', fullPage: true });
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: 'docs/mobile.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: /Compare plans/ }).click();
   await expect(page.getByText('98.55% lower', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -190,3 +193,34 @@ for (const fixture of [
     await expect(page.locator('.tree-footnote')).not.toContainText('Timings overlap');
   });
 }
+
+test('reduced motion keeps controls, measurements, and inspector usable without moving surfaces', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Execution plan', exact: true })).toBeVisible();
+  await expect(page.locator('.summary-stat.execution')).toContainText('21.659 ms');
+  expect(
+    await page.evaluate(() =>
+      document.getAnimations().some((animation) => animation.playState === 'running'),
+    ),
+  ).toBe(false);
+  await page.getByRole('button', { name: 'Inspect Sort node 1.1', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sort', exact: true })).toBeVisible();
+  expect(
+    await page.getByRole('main').evaluate((element) => getComputedStyle(element).opacity),
+  ).toBe('1');
+  expect(
+    await page.evaluate(() =>
+      document.getAnimations().some((animation) => animation.playState === 'running'),
+    ),
+  ).toBe(false);
+  await page.getByRole('button', { name: 'Compare plans', exact: true }).click();
+  await expect(page.getByText('98.55% lower', { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      document.getAnimations().some((animation) => animation.playState === 'running'),
+    ),
+  ).toBe(false);
+});

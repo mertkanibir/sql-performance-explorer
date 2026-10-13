@@ -1,3 +1,4 @@
+import { Database, GitBranch, PanelRight } from 'lucide-react';
 import { estimateError, formatNumber, metric } from '../lib/plan';
 import type { PlanNode } from '../lib/plan';
 export function NodeDetails({ node }: { node: PlanNode }) {
@@ -30,12 +31,20 @@ export function NodeDetails({ node }: { node: PlanNode }) {
   return (
     <aside className="node-details" aria-labelledby="node-details-heading">
       <div className="panel-heading">
-        <h2 id="node-details-heading">Node properties</h2>
+        <div className="panel-title">
+          <PanelRight size={17} />
+          <h2 id="node-details-heading">Node properties</h2>
+        </div>
         <span className="node-id">{node.id}</span>
       </div>
       <div className="selected-operation">
-        <h3>{node.type}</h3>
-        <p>{node.relation ?? node.index ?? 'Query operation'}</p>
+        <span className="inspector-operation-badge">
+          {node.type.includes('Scan') ? <Database size={23} /> : <GitBranch size={23} />}
+        </span>
+        <div>
+          <h3>{node.type}</h3>
+          <p>{node.relation ?? node.index ?? 'Query operation'}</p>
+        </div>
       </div>
       <dl className="property-table">
         <div>

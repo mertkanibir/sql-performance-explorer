@@ -10,6 +10,14 @@ import {
   Trash2,
   TriangleAlert,
   Bookmark,
+  Focus,
+  GitBranch,
+  Code2,
+  Timer,
+  SlidersHorizontal,
+  Layers3,
+  ShieldCheck,
+  X,
 } from 'lucide-react';
 import { PlanTree } from './components/PlanTree';
 import { NodeDetails } from './components/NodeDetails';
@@ -178,39 +186,42 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         Skip to analysis
       </a>
-      <header className="app-header">
-        <a
-          className="app-name"
-          href="#"
-          onClick={(event) => {
-            event.preventDefault();
-            setView('analyze');
-          }}
-        >
-          PlanScope
-        </a>
-        <span className="app-description">PostgreSQL EXPLAIN inspector</span>
-        <nav aria-label="Main navigation">
-          {(
-            [
-              { id: 'analyze', label: 'Execution plan' },
-              { id: 'compare', label: 'Compare plans' },
-              { id: 'guide', label: 'Capture instructions' },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.id}
-              className={view === item.id ? 'nav-item active' : 'nav-item'}
-              aria-current={view === item.id ? 'page' : undefined}
-              onClick={() => setView(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </header>
       <div className="workspace-layout">
         <aside className="library-panel" aria-label="Plan library">
+          <a
+            className="app-name"
+            href="#"
+            onClick={(event) => {
+              event.preventDefault();
+              setView('analyze');
+            }}
+          >
+            <span className="product-icon">
+              <Focus size={23} strokeWidth={1.7} />
+            </span>
+            <span>
+              PlanScope<small>PostgreSQL plan inspector</small>
+            </span>
+          </a>
+          <nav aria-label="Main navigation">
+            {(
+              [
+                { id: 'analyze', label: 'Execution plan', icon: GitBranch },
+                { id: 'compare', label: 'Compare plans', icon: GitCompareArrows },
+                { id: 'guide', label: 'Capture instructions', icon: Code2 },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                className={view === item.id ? 'nav-item active' : 'nav-item'}
+                aria-current={view === item.id ? 'page' : undefined}
+                onClick={() => setView(item.id)}
+              >
+                <item.icon size={17} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
           <section className="sample-library">
             <h2>Example plans</h2>
             <div className="sample-list">
@@ -283,281 +294,321 @@ export default function App() {
             PostgreSQL documentation <ArrowUpRight size={13} />
           </a>
         </aside>
-        <main id="main-content">
-          <div className="page-heading">
-            <h1>
-              {view === 'compare'
-                ? 'Compare plans'
-                : view === 'guide'
-                  ? 'Capture instructions'
-                  : 'Execution plan'}
-            </h1>
-            <button
-              className="primary-button"
-              onClick={() => setImportMode(view === 'compare' ? 'comparison' : 'baseline')}
-            >
-              <Plus size={15} /> Import {view === 'compare' ? 'comparison' : 'plan'}
-            </button>
-          </div>
-          {notice ? (
-            <div className="notice" role="status">
-              <span>{notice}</span>
+        <main id="main-content" className="main-stage">
+          <div className="view-content" key={view}>
+            <div className="page-heading">
+              <div>
+                <h1>
+                  {view === 'compare'
+                    ? 'Compare plans'
+                    : view === 'guide'
+                      ? 'Capture instructions'
+                      : 'Execution plan'}
+                </h1>
+                <p className="page-description">
+                  {view === 'compare'
+                    ? 'Compare recorded measurements and operation trees.'
+                    : view === 'guide'
+                      ? 'Export PostgreSQL JSON or reproduce the included experiment.'
+                      : 'Inspect operations, recorded work, and planner estimates.'}
+                </p>
+              </div>
               <button
-                className="icon-button"
-                aria-label="Dismiss notification"
-                onClick={() => setNotice('')}
+                className="primary-button"
+                onClick={() => setImportMode(view === 'compare' ? 'comparison' : 'baseline')}
               >
-                ×
+                <Plus size={15} /> Import {view === 'compare' ? 'comparison' : 'plan'}
               </button>
             </div>
-          ) : null}
-          {view === 'guide' ? (
-            <div className="guide-content">
-              <section className="guide-panel">
-                <h2>Export a PostgreSQL plan</h2>
-                <p>
-                  Run this in your PostgreSQL client and save the JSON output. ANALYZE executes the
-                  SQL statement; use a read-only query you understand.
-                </p>
-                <pre>
-                  {
-                    "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)\nSELECT id, total, created_at\nFROM planscope_orders\nWHERE customer_id = 4242 AND status = 'paid'\nORDER BY created_at DESC\nLIMIT 20;"
-                  }
-                </pre>
-                <p>
-                  Use <code>EXPLAIN (FORMAT JSON)</code> for estimates without execution. Add{' '}
-                  <code>TIMING OFF</code> to an ANALYZE capture for row measurements without node
-                  timings.
-                </p>
-                <button className="secondary-button" onClick={() => setImportMode('baseline')}>
-                  I have a plan <ArrowRight size={14} />
-                </button>
-              </section>
-              <section className="guide-panel">
-                <h2>Reproduce the sample captures</h2>
-                <p>
-                  The sample uses 200,000 deterministic orders. A selective customer/status lookup
-                  initially scans almost the whole table. A composite index changes the scan
-                  strategy.
-                </p>
-                <pre>
-                  {
-                    'CREATE INDEX planscope_orders_lookup\nON planscope_orders\n(customer_id, status, created_at DESC);'
-                  }
-                </pre>
-                <dl className="experiment-results">
-                  <div>
-                    <dt>Baseline execution</dt>
-                    <dd>21.659 ms</dd>
-                  </div>
-                  <div>
-                    <dt>Indexed execution</dt>
-                    <dd>0.313 ms</dd>
-                  </div>
-                  <div>
-                    <dt>Engine</dt>
-                    <dd>PostgreSQL 18.6 / PGlite 0.5.9</dd>
-                  </div>
-                </dl>
-                <p>
-                  Single local captures, not a production benchmark. Compare repeated runs with
-                  equivalent data, configuration, and cache conditions.
-                </p>
+            {notice ? (
+              <div className="notice" role="status">
+                <span>{notice}</span>
                 <button
-                  className="secondary-button"
-                  onClick={() => download('planscope-setup.sql', setupSql, 'text/plain')}
+                  className="icon-button"
+                  aria-label="Dismiss notification"
+                  onClick={() => setNotice('')}
                 >
-                  Download experiment SQL <Download size={14} />
+                  <X size={15} />
                 </button>
-              </section>
-            </div>
-          ) : (
-            <>
-              <section className="analysis-document" aria-label="Current analysis">
-                <div className="document-heading">
-                  <FileJson size={16} />
-                  <h2>{analysis.name}</h2>
-                  <div className="document-actions">
-                    <button className="secondary-button" onClick={save}>
-                      <Bookmark size={14} /> Save
-                    </button>
-                    <button className="secondary-button" onClick={exportReport}>
-                      <Download size={14} /> Export report
-                    </button>
-                  </div>
-                </div>
-                <p className="document-source">{analysis.source}</p>
-              </section>
-              {view === 'analyze' ? (
-                <>
-                  <dl className="plan-summary" aria-label="Plan summary">
-                    <div className="summary-stat execution">
-                      <dt>Execution</dt>
-                      <dd>
-                        {plan.executionTime === undefined
-                          ? 'Not recorded'
-                          : `${formatNumber(plan.executionTime, 3)} ms`}
-                      </dd>
-                      {plan.executionTime === undefined ? (
-                        <small>No execution timing recorded</small>
-                      ) : null}
+              </div>
+            ) : null}
+            {view === 'guide' ? (
+              <div className="guide-content">
+                <section className="guide-panel">
+                  <h2>Export a PostgreSQL plan</h2>
+                  <p>
+                    Run this in your PostgreSQL client and save the JSON output. ANALYZE executes
+                    the SQL statement; use a read-only query you understand.
+                  </p>
+                  <pre>
+                    {
+                      "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)\nSELECT id, total, created_at\nFROM planscope_orders\nWHERE customer_id = 4242 AND status = 'paid'\nORDER BY created_at DESC\nLIMIT 20;"
+                    }
+                  </pre>
+                  <p>
+                    Use <code>EXPLAIN (FORMAT JSON)</code> for estimates without execution. Add{' '}
+                    <code>TIMING OFF</code> to an ANALYZE capture for row measurements without node
+                    timings.
+                  </p>
+                  <button className="secondary-button" onClick={() => setImportMode('baseline')}>
+                    I have a plan <ArrowRight size={14} />
+                  </button>
+                </section>
+                <section className="guide-panel">
+                  <h2>Reproduce the sample captures</h2>
+                  <p>
+                    The sample uses 200,000 deterministic orders. A selective customer/status lookup
+                    initially scans almost the whole table. A composite index changes the scan
+                    strategy.
+                  </p>
+                  <pre>
+                    {
+                      'CREATE INDEX planscope_orders_lookup\nON planscope_orders\n(customer_id, status, created_at DESC);'
+                    }
+                  </pre>
+                  <dl className="experiment-results">
+                    <div>
+                      <dt>Baseline execution</dt>
+                      <dd>21.659 ms</dd>
                     </div>
-                    <div className="summary-stat">
-                      <dt>Planning</dt>
-                      <dd>{metric(plan.planningTime, ' ms')}</dd>
+                    <div>
+                      <dt>Indexed execution</dt>
+                      <dd>0.313 ms</dd>
                     </div>
-                    <div className="summary-stat">
-                      <dt>Root cost</dt>
-                      <dd>{formatNumber(plan.root.totalCost)} units</dd>
-                    </div>
-                    <div className="summary-stat">
-                      <dt>Operations</dt>
-                      <dd>
-                        {plan.nodes.length}
-                        {plan.parallel ? ' · parallel' : ''}
-                      </dd>
-                    </div>
-                    <div className="summary-stat">
-                      <dt>Review signals</dt>
-                      <dd>
-                        {warningCount} {warningCount === 1 ? 'warning' : 'warnings'}
-                      </dd>
+                    <div>
+                      <dt>Engine</dt>
+                      <dd>PostgreSQL 18.6 / PGlite 0.5.9</dd>
                     </div>
                   </dl>
-                  <div className="explorer-grid">
-                    <div className="explorer-left">
-                      <PlanTree
-                        key={analysis.input}
-                        plan={plan}
-                        selectedId={selected.id}
-                        onSelect={setSelectedId}
-                      />
-                      <section className="signals-panel" aria-labelledby="signals-title">
-                        <div className="panel-heading">
-                          <h2 id="signals-title">Review signals</h2>
-                          <span>{insights.length}</span>
-                        </div>
-                        {insights.length ? (
-                          insights.map((insight, index) => (
-                            <button
-                              className={`insight ${insight.kind}`}
-                              key={`${insight.nodeId}-${index}`}
-                              onClick={() => setSelectedId(insight.nodeId)}
-                            >
-                              <span className="insight-symbol">
-                                {insight.kind === 'warning' ? (
-                                  <TriangleAlert size={15} />
-                                ) : (
-                                  <Info size={15} />
-                                )}
-                              </span>
-                              <span>
-                                <strong>
-                                  {insight.title} <small>Node {insight.nodeId}</small>
-                                </strong>
-                                <p>{insight.message}</p>
-                              </span>
-                            </button>
-                          ))
-                        ) : (
-                          <p className="no-signals">
-                            No configured signals triggered. Inspect the operations and compare
-                            repeated runs; this does not establish optimal performance.
-                          </p>
-                        )}
-                      </section>
-                    </div>
-                    <NodeDetails node={selected} />
-                  </div>
-                </>
-              ) : (
-                <div className="comparison-view">
-                  <section className="comparison-heading">
-                    <div>
-                      <span className="section-label">Comparison document</span>
-                      <h2>{comparison.name}</h2>
-                      <p>{comparison.source}</p>
-                    </div>
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        const old = analysis;
-                        setAnalysis(comparison);
-                        setComparison(old);
-                        setSelectedId('1');
-                        setActiveSample('');
-                      }}
-                    >
-                      Swap plans <GitCompareArrows size={14} />
-                    </button>
-                  </section>
-                  <div className="comparison-selector">
-                    <label htmlFor="comparison-saved">Saved analysis</label>
-                    <select
-                      id="comparison-saved"
-                      value=""
-                      onChange={(event) => {
-                        const item = saved.find((row) => row.id === event.target.value);
-                        if (item) setComparison(item);
-                      }}
-                    >
-                      <option value="" disabled>
-                        Select from library…
-                      </option>
-                      {saved.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="secondary-button" onClick={() => setComparison(optimized)}>
-                      Use indexed sample
-                    </button>
-                  </div>
-                  <div className="comparison-table-wrapper">
-                    <table className="comparison-table">
-                      <thead>
-                        <tr>
-                          <th>Measurement</th>
-                          <th>Baseline</th>
-                          <th>Comparison</th>
-                          <th>Change</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <DeltaRow
-                          title="Execution time"
-                          value={differences.execution}
-                          suffix=" ms"
-                        />
-                        <DeltaRow
-                          title="Root estimated cost"
-                          value={differences.cost}
-                          suffix=" units"
-                        />
-                        <DeltaRow title="Operation count" value={differences.nodes} suffix="" />
-                      </tbody>
-                    </table>
-                  </div>
-                  {differences.outputRows && differences.outputRows.change !== 0 ? (
-                    <p className="comparison-warning">
-                      <TriangleAlert size={15} /> Root output counts differ. Verify equivalent
-                      results before attributing the change to an optimization.
-                    </p>
-                  ) : null}
-                  <div className="side-by-side">
-                    <CompactPlan plan={plan} name="Baseline operations" />
-                    <CompactPlan plan={comparedPlan} name="Comparison operations" />
-                  </div>
-                  <p className="comparison-caveat">
-                    Comparison uses statement summaries and tree shapes. Costs are planner units;
-                    timings depend on hardware, cache, data, and configuration. Corresponding nodes
-                    are not assumed equivalent.
+                  <p>
+                    Single local captures, not a production benchmark. Compare repeated runs with
+                    equivalent data, configuration, and cache conditions.
                   </p>
-                </div>
-              )}
-            </>
-          )}
+                  <button
+                    className="secondary-button"
+                    onClick={() => download('planscope-setup.sql', setupSql, 'text/plain')}
+                  >
+                    Download experiment SQL <Download size={14} />
+                  </button>
+                </section>
+              </div>
+            ) : (
+              <>
+                <section className="analysis-document" aria-label="Current analysis">
+                  <div className="document-heading">
+                    <span className="document-icon">
+                      <FileJson size={20} />
+                    </span>
+                    <h2>{analysis.name}</h2>
+                    <div className="document-actions">
+                      <button className="secondary-button" onClick={save}>
+                        <Bookmark size={14} /> Save
+                      </button>
+                      <button className="secondary-button" onClick={exportReport}>
+                        <Download size={14} /> Export report
+                      </button>
+                    </div>
+                  </div>
+                  <p className="document-source">{analysis.source}</p>
+                </section>
+                {view === 'analyze' ? (
+                  <>
+                    <dl className="plan-summary" aria-label="Plan summary">
+                      <div className="summary-stat execution">
+                        <dt>
+                          <Timer size={16} />
+                          Execution time
+                        </dt>
+                        <dd>
+                          {plan.executionTime === undefined ? (
+                            <span className="missing-value">Not recorded</span>
+                          ) : (
+                            <>
+                              {formatNumber(plan.executionTime, 3)}
+                              <span className="metric-unit"> ms</span>
+                            </>
+                          )}
+                        </dd>
+                        <small>
+                          {plan.executionTime === undefined
+                            ? 'No execution timing recorded'
+                            : `Planning ${metric(plan.planningTime, ' ms')}`}
+                        </small>
+                      </div>
+                      <div className="summary-stat">
+                        <dt>
+                          <SlidersHorizontal size={16} />
+                          Root cost
+                        </dt>
+                        <dd>
+                          {formatNumber(plan.root.totalCost)}
+                          <span className="metric-unit"> units</span>
+                        </dd>
+                        <small>Inclusive planner estimate</small>
+                      </div>
+                      <div className="summary-stat">
+                        <dt>
+                          <Layers3 size={16} />
+                          Operations
+                        </dt>
+                        <dd>
+                          {plan.nodes.length}
+                          <span className="metric-unit"> nodes</span>
+                        </dd>
+                        <small>
+                          {plan.parallel ? 'Parallel execution' : 'Non-parallel execution'}
+                        </small>
+                      </div>
+                      <div className={`summary-stat ${warningCount ? 'has-warning' : ''}`}>
+                        <dt>
+                          <ShieldCheck size={16} />
+                          Review signals
+                        </dt>
+                        <dd>
+                          {warningCount}
+                          <span className="metric-unit">
+                            {' '}
+                            {warningCount === 1 ? 'warning' : 'warnings'}
+                          </span>
+                        </dd>
+                        <small>Deterministic review heuristics</small>
+                      </div>
+                    </dl>
+                    <div className="explorer-grid">
+                      <div className="explorer-left">
+                        <PlanTree
+                          key={analysis.input}
+                          plan={plan}
+                          selectedId={selected.id}
+                          onSelect={setSelectedId}
+                        />
+                        <section className="signals-panel" aria-labelledby="signals-title">
+                          <div className="panel-heading">
+                            <h2 id="signals-title">Review signals</h2>
+                            <span>{insights.length}</span>
+                          </div>
+                          {insights.length ? (
+                            insights.map((insight, index) => (
+                              <button
+                                className={`insight ${insight.kind}`}
+                                key={`${insight.nodeId}-${index}`}
+                                onClick={() => setSelectedId(insight.nodeId)}
+                              >
+                                <span className="insight-symbol">
+                                  {insight.kind === 'warning' ? (
+                                    <TriangleAlert size={15} />
+                                  ) : (
+                                    <Info size={15} />
+                                  )}
+                                </span>
+                                <span>
+                                  <strong>
+                                    {insight.title} <small>Node {insight.nodeId}</small>
+                                  </strong>
+                                  <p>{insight.message}</p>
+                                </span>
+                              </button>
+                            ))
+                          ) : (
+                            <p className="no-signals">
+                              No configured signals triggered. Inspect the operations and compare
+                              repeated runs; this does not establish optimal performance.
+                            </p>
+                          )}
+                        </section>
+                      </div>
+                      <NodeDetails key={selected.id} node={selected} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="comparison-view">
+                    <section className="comparison-heading">
+                      <div>
+                        <span className="section-label">Comparison document</span>
+                        <h2>{comparison.name}</h2>
+                        <p>{comparison.source}</p>
+                      </div>
+                      <button
+                        className="secondary-button"
+                        onClick={() => {
+                          const old = analysis;
+                          setAnalysis(comparison);
+                          setComparison(old);
+                          setSelectedId('1');
+                          setActiveSample('');
+                        }}
+                      >
+                        Swap plans <GitCompareArrows size={14} />
+                      </button>
+                    </section>
+                    <div className="comparison-selector">
+                      <label htmlFor="comparison-saved">Saved analysis</label>
+                      <select
+                        id="comparison-saved"
+                        value=""
+                        onChange={(event) => {
+                          const item = saved.find((row) => row.id === event.target.value);
+                          if (item) setComparison(item);
+                        }}
+                      >
+                        <option value="" disabled>
+                          Select from library…
+                        </option>
+                        {saved.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="secondary-button" onClick={() => setComparison(optimized)}>
+                        Use indexed sample
+                      </button>
+                    </div>
+                    <div className="comparison-table-wrapper">
+                      <table className="comparison-table">
+                        <thead>
+                          <tr>
+                            <th>Measurement</th>
+                            <th>Baseline</th>
+                            <th>Comparison</th>
+                            <th>Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <DeltaRow
+                            title="Execution time"
+                            value={differences.execution}
+                            suffix=" ms"
+                          />
+                          <DeltaRow
+                            title="Root estimated cost"
+                            value={differences.cost}
+                            suffix=" units"
+                          />
+                          <DeltaRow title="Operation count" value={differences.nodes} suffix="" />
+                        </tbody>
+                      </table>
+                    </div>
+                    {differences.outputRows && differences.outputRows.change !== 0 ? (
+                      <p className="comparison-warning">
+                        <TriangleAlert size={15} /> Root output counts differ. Verify equivalent
+                        results before attributing the change to an optimization.
+                      </p>
+                    ) : null}
+                    <div className="side-by-side">
+                      <CompactPlan plan={plan} name="Baseline operations" />
+                      <CompactPlan plan={comparedPlan} name="Comparison operations" />
+                    </div>
+                    <p className="comparison-caveat">
+                      Comparison uses statement summaries and tree shapes. Costs are planner units;
+                      timings depend on hardware, cache, data, and configuration. Corresponding
+                      nodes are not assumed equivalent.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </main>
       </div>
       {importMode ? (

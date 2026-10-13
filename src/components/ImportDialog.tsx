@@ -12,7 +12,15 @@ export function ImportDialog({ mode, onClose, onImport }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
-    dialog.current?.showModal();
+    const opener = document.activeElement;
+    const modal = dialog.current;
+    modal?.showModal();
+    return () => {
+      modal?.close();
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus({ preventScroll: true });
+      }
+    };
   }, []);
   const load = async (file?: File) => {
     if (!file) return;
