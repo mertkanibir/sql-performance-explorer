@@ -1,0 +1,11 @@
+{
+  "capturedAt": "2026-10-13T02:03:33.771Z",
+  "engine": "@electric-sql/pglite 0.5.9 (real PostgreSQL compiled to WebAssembly)",
+  "postgresVersion": "18.6",
+  "datasetRows": 200000,
+  "query": "SELECT id, total, created_at\nFROM planscope_orders\nWHERE customer_id = 4242 AND status = 'paid'\nORDER BY created_at DESC\nLIMIT 20",
+  "index": "CREATE INDEX planscope_orders_lookup ON planscope_orders (customer_id, status, created_at DESC);",
+  "baselineExecutionMs": 21.659,
+  "indexedExecutionMs": 0.313,
+  "caveat": "Single captures in local PGlite; timings depend on engine, host, and cache state and are not production benchmarks."
+}
