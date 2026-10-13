@@ -71,13 +71,11 @@ test('uploads JSON, downloads SQL, and supports keyboard dialog dismissal', asyn
   await page.getByRole('button', { name: 'Download experiment SQL' }).click();
   expect((await sqlDownload).suggestedFilename()).toBe('planscope-setup.sql');
   await page.getByRole('button', { name: 'I have a plan' }).click();
-  await page
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'uploaded.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(baselineSample),
-    });
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'uploaded.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(baselineSample),
+  });
   await expect(page.getByLabel('Analysis name')).toHaveValue('uploaded');
   await page.getByRole('button', { name: 'Analyze plan' }).click();
   await expect(page.getByRole('heading', { name: 'uploaded', exact: true })).toBeVisible();
@@ -95,3 +93,95 @@ test('mobile layout is usable without page overflow', async ({ page }) => {
   await expect(page.getByText('98.55% lower', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+const costPlan = {
+  'Node Type': 'Aggregate',
+  'Startup Cost': 5,
+  'Total Cost': 10,
+  'Plan Rows': 1,
+  Plans: [
+    {
+      'Node Type': 'Seq Scan',
+      'Startup Cost': 0,
+      'Total Cost': 5,
+      'Plan Rows': 1,
+    },
+  ],
+};
+const zeroTimePlan = {
+  ...costPlan,
+  'Actual Rows': 0,
+  'Actual Loops': 1,
+  'Actual Total Time': 0,
+  Plans: costPlan.Plans.map((node) => ({
+    ...node,
+    'Actual Rows': 0,
+    'Actual Loops': 1,
+    'Actual Total Time': 0,
+  })),
+};
+
+test('zero-time ANALYZE keeps measured work bars at zero instead of showing cost', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Import plan', exact: true }).click();
+  await page
+    .getByLabel('EXPLAIN JSON', { exact: true })
+    .fill(JSON.stringify([{ Plan: zeroTimePlan }]));
+  await page.getByRole('button', { name: 'Analyze plan' }).click();
+  const heading = page.locator('.tree-column-head > span').last();
+  await expect(heading).toContainText('INCLUSIVE WORK');
+  await expect(heading).toContainText('TIME × LOOPS');
+  await expect(page.locator('.row-time > strong')).toHaveText(['0 ms', '0 ms']);
+  expect(
+    await page
+      .locator('.mini-track > span')
+      .evaluateAll((bars) => bars.map((bar) => (bar as HTMLElement).style.width)),
+  ).toEqual(['0%', '0%']);
+  await expect(page.locator('.tree-footnote')).toContainText('inclusive node work');
+  await expect(page.locator('.tree-footnote')).toContainText('Timings overlap');
+});
+
+for (const fixture of [
+  { name: 'plain EXPLAIN', plan: costPlan },
+  {
+    name: 'ANALYZE TIMING OFF',
+    plan: {
+      ...costPlan,
+      'Actual Rows': 1,
+      'Actual Loops': 1,
+      Plans: costPlan.Plans.map((node) => ({
+        ...node,
+        'Actual Rows': 1,
+        'Actual Loops': 1,
+      })),
+    },
+  },
+]) {
+  test(`${fixture.name} presents cost bars with planner labels and cost-specific guidance`, async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Import plan', exact: true }).click();
+    await page
+      .getByLabel('EXPLAIN JSON', { exact: true })
+      .fill(JSON.stringify([{ Plan: fixture.plan }]));
+    await page.getByRole('button', { name: 'Analyze plan' }).click();
+    const heading = page.locator('.tree-column-head > span').last();
+    await expect(heading).toContainText('ESTIMATED COST');
+    await expect(heading).toContainText('PLANNER UNITS');
+    await expect(heading).not.toContainText('TIME × LOOPS');
+    await expect(page.locator('.row-time > strong')).toHaveText(['10 cost', '5 cost']);
+    expect(
+      await page
+        .locator('.mini-track > span')
+        .evaluateAll((bars) => bars.map((bar) => (bar as HTMLElement).style.width)),
+    ).toEqual(['100%', '50%']);
+    await expect(page.locator('.tree-footnote')).toContainText(
+      'inclusive estimated node costs in planner units',
+    );
+    await expect(page.locator('.tree-footnote')).toContainText('Costs include descendants');
+    await expect(page.locator('.tree-footnote')).not.toContainText('Timings overlap');
+  });
+}

@@ -127,7 +127,7 @@ npm run experiment
 Verified locally on Node.js 24.21.0:
 
 - **36 unit tests**: captured-plan parsing; wrapper/bare-node input; loops and zero loops; ordinary EXPLAIN and TIMING OFF; zero-row cardinality differences; malformed, oversized, deep, and numerically overflowing input; heuristics; comparison; report content; storage recovery and quota errors.
-- **5 Chromium browser stories**: tree selection/collapse/expand; saving and reload; invalid input and import; report download/content; estimates-only mode; real-plan comparison/import/swap; file upload; SQL download; Escape dismissal; mobile layout without page overflow.
+- **8 Chromium browser stories**: tree selection/collapse/expand; saving and reload; invalid input and import; report download/content; estimates-only mode; real-plan comparison/import/swap; file upload; SQL download; Escape dismissal; mobile layout without page overflow; zero-time ANALYZE work bars; planner-cost labels for ordinary EXPLAIN and TIMING OFF.
 - **Production build**: strict TypeScript check and Vite build.
 - **Reproducible database experiment**: original and indexed SQL return identical rows.
 - **Browser observation**: no uncaught page errors, no external network requests during the verified flows, and a 390 px mobile page with no document overflow.

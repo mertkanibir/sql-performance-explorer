@@ -22,7 +22,10 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
     if (!collapsed.has(node.id)) node.children.forEach(visit);
   }
   visit(plan.root);
-  const largestTime = Math.max(...plan.nodes.map((n) => n.cumulativeTime ?? 0));
+  const hasRecordedTime = plan.nodes.some((node) => node.cumulativeTime !== undefined);
+  const largestValue = Math.max(
+    ...plan.nodes.map((node) => (hasRecordedTime ? (node.cumulativeTime ?? 0) : node.totalCost)),
+  );
   const toggle = (id: string) =>
     setCollapsed((old) => {
       const next = new Set(old);
@@ -53,29 +56,23 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
             ROWS / LOOP <small>EST. → ACTUAL</small>
           </span>
           <span>
-            {plan.nodes.some((n) => n.actualTime !== undefined)
-              ? 'INCLUSIVE WORK'
-              : 'ESTIMATED COST'}
-            <small>
-              {plan.nodes.some((n) => n.actualTime !== undefined)
-                ? 'TIME × LOOPS'
-                : 'PLANNER UNITS'}
-            </small>
+            {hasRecordedTime ? 'INCLUSIVE WORK' : 'ESTIMATED COST'}
+            <small>{hasRecordedTime ? 'TIME × LOOPS' : 'PLANNER UNITS'}</small>
           </span>
         </div>
         <ul className="plan-nodes" aria-label="Execution plan operations">
           {visible.map((node) => {
             const error = estimateError(node);
             const flagged = error && (error.factor === null || error.factor >= 10);
-            const width =
-              largestTime > 0
-                ? ((node.cumulativeTime ?? 0) / largestTime) * 100
-                : (node.totalCost / Math.max(plan.root.totalCost, 1)) * 100;
+            const value = hasRecordedTime ? (node.cumulativeTime ?? 0) : node.totalCost;
+            const width = largestValue > 0 ? (value / largestValue) * 100 : 0;
             return (
               <li key={node.id} className={`plan-row ${selectedId === node.id ? 'selected' : ''}`}>
                 <div
                   className="node-main"
-                  style={{ paddingLeft: `${16 + Math.min(node.depth, 12) * 23}px` }}
+                  style={{
+                    paddingLeft: `${16 + Math.min(node.depth, 12) * 23}px`,
+                  }}
                 >
                   {node.children.length > 0 ? (
                     <button
@@ -126,9 +123,9 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
                 </div>
                 <div className="row-time">
                   <strong>
-                    {node.actualTime === undefined
-                      ? `${formatNumber(node.totalCost)} cost`
-                      : metric(node.cumulativeTime, ' ms')}
+                    {hasRecordedTime
+                      ? metric(node.cumulativeTime, ' ms')
+                      : `${formatNumber(node.totalCost)} cost`}
                   </strong>
                   <span className="mini-track">
                     <span style={{ width: `${Math.min(width, 100)}%` }} />
@@ -140,8 +137,10 @@ export function PlanTree({ plan, selectedId, onSelect }: Props) {
         </ul>
       </div>
       <div className="tree-footnote">
-        <span className="legend-dot" /> Bars compare inclusive node work. Timings overlap and must
-        never be summed.
+        <span className="legend-dot" />{' '}
+        {hasRecordedTime
+          ? 'Bars compare inclusive node work. Timings overlap and must never be summed.'
+          : 'Bars compare inclusive estimated node costs in planner units. Costs include descendants and must never be summed.'}
       </div>
     </section>
   );
